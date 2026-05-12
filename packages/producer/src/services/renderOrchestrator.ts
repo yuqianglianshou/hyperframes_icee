@@ -41,7 +41,6 @@ import {
   initializeSession,
   closeCaptureSession,
   captureFrameToBuffer,
-  prepareCaptureSessionForReuse,
   type CaptureOptions,
   type CaptureVideoMetadataHint,
   type CaptureSession,
@@ -59,7 +58,6 @@ import {
   type ParallelProgress,
   type WorkerTask,
   spawnStreamingEncoder,
-  createFrameReorderBuffer,
   type StreamingEncoder,
   analyzeCompositionHdr,
   runFfmpeg,
@@ -101,6 +99,7 @@ import { runProbeStage } from "./render/stages/probeStage.js";
 import { runExtractVideosStage } from "./render/stages/extractVideosStage.js";
 import { runAudioStage } from "./render/stages/audioStage.js";
 import { runCaptureStage } from "./render/stages/captureStage.js";
+import { runCaptureStreamingStage } from "./render/stages/captureStreamingStage.js";
 
 /**
  * Wrap a cleanup operation so it never throws, but logs any failure.
@@ -3081,281 +3080,154 @@ export async function executeRenderJob(
         }
         hdrVideoFrameSources.clear();
       }
-    } else // ── Standard capture paths (SDR or DOM-only HDR) ──────────────────
-    // Streaming encode mode: pipe frame buffers directly to FFmpeg stdin,
-    // skipping disk writes and the separate Stage 5 encode step.
-    {
-      let streamingEncoder: StreamingEncoder | null = null;
-      let streamingEncoderClosed = false;
-
+    } else {
+      // ── Standard capture paths (SDR or DOM-only HDR) ──────────────────
+      // Streaming encode mode pipes frame buffers directly to FFmpeg stdin,
+      // skipping disk writes and the separate Stage 5 encode step. If the
+      // streaming spawn fails (non-abort) the stage returns { success: false }
+      // and we fall back to the disk path below.
+      let streamingHandled = false;
       if (useStreamingEncode) {
-        try {
-          streamingEncoder = await spawnStreamingEncoder(
-            videoOnlyPath,
-            {
-              fps: job.config.fps,
-              width,
-              height,
-              codec: preset.codec,
-              preset: preset.preset,
-              quality: effectiveQuality,
-              bitrate: effectiveBitrate,
-              pixelFormat: preset.pixelFormat,
-              useGpu: job.config.useGpu,
-              imageFormat: captureOptions.format || "jpeg",
-              hdr: preset.hdr,
-            },
-            abortSignal,
-          );
-          assertNotAborted();
-        } catch (err) {
-          if (abortSignal?.aborted) {
-            if (streamingEncoder && !streamingEncoderClosed) {
-              await streamingEncoder.close().catch(() => {});
-              streamingEncoderClosed = true;
-            }
-            throw err;
-          }
+        const streamingRes = await runCaptureStreamingStage({
+          fileServer,
+          workDir,
+          framesDir,
+          videoOnlyPath,
+          job,
+          totalFrames,
+          cfg,
+          log,
+          workerCount,
+          probeSession,
+          outputFormat,
+          streamingEncoderOptions: {
+            fps: job.config.fps,
+            width,
+            height,
+            codec: preset.codec,
+            preset: preset.preset,
+            quality: effectiveQuality,
+            bitrate: effectiveBitrate,
+            pixelFormat: preset.pixelFormat,
+            useGpu: job.config.useGpu,
+            imageFormat: captureOptions.format || "jpeg",
+            hdr: preset.hdr,
+          },
+          buildCaptureOptions,
+          createRenderVideoFrameInjector,
+          abortSignal,
+          assertNotAborted,
+          onProgress,
+        });
+        if (streamingRes.success) {
+          streamingHandled = true;
+          workerCount = streamingRes.workerCount;
+          probeSession = streamingRes.probeSession;
+          lastBrowserConsole = streamingRes.lastBrowserConsole;
+          perfStages.captureMs = Date.now() - stage4Start;
+          perfStages.encodeMs = streamingRes.encodeMs; // Overlapped with capture
+        } else {
           useStreamingEncode = false;
-          streamingEncoder = null;
-          log.warn("[Render] Streaming encoder spawn failed; falling back to disk-frame encode.", {
-            error: err instanceof Error ? err.message : String(err),
-            outputFormat,
-            workerCount,
-            durationSeconds: job.duration,
-          });
         }
       }
 
-      try {
-        if (useStreamingEncode && streamingEncoder) {
-          // ── Streaming capture + encode (Stage 4 absorbs Stage 5) ──────────
-          // Streaming encode is locked in here; capture retries may shrink
-          // workerCount later, but must not grow a streaming render past one worker.
-          const reorderBuffer = createFrameReorderBuffer(0, totalFrames);
-          const currentEncoder = streamingEncoder;
+      if (!streamingHandled) {
+        // ── Disk-based capture (original flow) ────────────────────────────
+        const captureRes = await runCaptureStage({
+          fileServer,
+          workDir,
+          framesDir,
+          job,
+          totalFrames,
+          cfg,
+          log,
+          workerCount,
+          probeSession,
+          needsAlpha,
+          captureAttempts,
+          buildCaptureOptions,
+          createRenderVideoFrameInjector,
+          abortSignal,
+          assertNotAborted,
+          onProgress,
+        });
+        workerCount = captureRes.workerCount;
+        probeSession = captureRes.probeSession;
+        lastBrowserConsole = captureRes.lastBrowserConsole;
 
-          if (workerCount > 1) {
-            // Parallel capture → streaming encode
-            const tasks = distributeFrames(job.totalFrames, workerCount, workDir);
+        perfStages.captureMs = Date.now() - stage4Start;
 
-            const onFrameBuffer = async (frameIndex: number, buffer: Buffer): Promise<void> => {
-              await reorderBuffer.waitForFrame(frameIndex);
-              currentEncoder.writeFrame(buffer);
-              reorderBuffer.advanceTo(frameIndex + 1);
-            };
-
-            await executeParallelCapture(
-              fileServer.url,
-              workDir,
-              tasks,
-              buildCaptureOptions(),
-              createRenderVideoFrameInjector,
-              abortSignal,
-              (progress) => {
-                job.framesRendered = progress.capturedFrames;
-                const frameProgress = progress.capturedFrames / progress.totalFrames;
-                const progressPct = 25 + frameProgress * 55;
-
-                if (
-                  progress.capturedFrames % 30 === 0 ||
-                  progress.capturedFrames === progress.totalFrames
-                ) {
-                  updateJobStatus(
-                    job,
-                    "rendering",
-                    `Streaming frame ${progress.capturedFrames}/${progress.totalFrames} (${workerCount} workers)`,
-                    Math.round(progressPct),
-                    onProgress,
-                  );
-                }
-              },
-              onFrameBuffer,
-              cfg,
+        if (isPngSequence) {
+          // ── Stage 5 (png-sequence): copy captured PNGs to outputDir ──────
+          // No encoder, no mux, no faststart — captured frames already carry
+          // alpha and are the deliverable. We rename to `frame_NNNNNN.png`
+          // (zero-padded) so consumers (After Effects, Nuke, Fusion, ffmpeg
+          // image2 demuxer) can globbed-import without surprises.
+          const stage5Start = Date.now();
+          updateJobStatus(job, "encoding", "Writing PNG sequence", 75, onProgress);
+          if (!existsSync(outputPath)) mkdirSync(outputPath, { recursive: true });
+          const captured = readdirSync(framesDir)
+            .filter((name) => name.endsWith(".png"))
+            .sort();
+          if (captured.length === 0) {
+            throw new Error(
+              `[Render] png-sequence output requested but no PNGs were captured to ${framesDir}`,
             );
-
-            if (probeSession) {
-              lastBrowserConsole = probeSession.browserConsoleBuffer;
-              await closeCaptureSession(probeSession);
-              probeSession = null;
-            }
-          } else {
-            // Sequential capture → streaming encode
-
-            const videoInjector = createRenderVideoFrameInjector();
-            const session =
-              probeSession ??
-              (await createCaptureSession(
-                fileServer.url,
-                framesDir,
-                buildCaptureOptions(),
-                videoInjector,
-                cfg,
-              ));
-            if (probeSession) {
-              prepareCaptureSessionForReuse(session, framesDir, videoInjector);
-              probeSession = null;
-            }
-
-            try {
-              if (!session.isInitialized) {
-                await initializeSession(session);
-              }
-              assertNotAborted();
-              lastBrowserConsole = session.browserConsoleBuffer;
-
-              for (let i = 0; i < totalFrames; i++) {
-                assertNotAborted();
-                const time = (i * job.config.fps.den) / job.config.fps.num;
-                const { buffer } = await captureFrameToBuffer(session, i, time);
-                await reorderBuffer.waitForFrame(i);
-                currentEncoder.writeFrame(buffer);
-                reorderBuffer.advanceTo(i + 1);
-                job.framesRendered = i + 1;
-
-                const frameProgress = (i + 1) / totalFrames;
-                const progress = 25 + frameProgress * 55;
-
-                updateJobStatus(
-                  job,
-                  "rendering",
-                  `Streaming frame ${i + 1}/${job.totalFrames}`,
-                  Math.round(progress),
-                  onProgress,
-                );
-              }
-            } finally {
-              lastBrowserConsole = session.browserConsoleBuffer;
-              await closeCaptureSession(session);
-            }
           }
+          captured.forEach((name, i) => {
+            const dst = join(outputPath, `frame_${String(i + 1).padStart(6, "0")}.png`);
+            copyFileSync(join(framesDir, name), dst);
+          });
+          if (hasAudio && existsSync(audioOutputPath)) {
+            // Sidecar audio for callers that need to re-mux later. png-sequence
+            // has no container of its own, so this is the only place audio
+            // can land alongside the frames.
+            copyFileSync(audioOutputPath, join(outputPath, "audio.aac"));
+            log.info(`[Render] png-sequence: audio.aac sidecar written to ${outputPath}/audio.aac`);
+          }
+          perfStages.encodeMs = Date.now() - stage5Start;
+        } else {
+          // ── Stage 5: Encode ───────────────────────────────────────────────
+          const stage5Start = Date.now();
+          updateJobStatus(job, "encoding", "Encoding video", 75, onProgress);
 
-          // Close encoder and get result
-          const encodeResult = await currentEncoder.close();
-          streamingEncoderClosed = true;
+          const frameExt = needsAlpha ? "png" : "jpg";
+          const framePattern = `frame_%06d.${frameExt}`;
+          const encoderOpts = {
+            fps: job.config.fps,
+            width,
+            height,
+            codec: preset.codec,
+            preset: preset.preset,
+            quality: effectiveQuality,
+            bitrate: effectiveBitrate,
+            pixelFormat: preset.pixelFormat,
+            useGpu: job.config.useGpu,
+            hdr: preset.hdr,
+          };
+          const encodeResult = enableChunkedEncode
+            ? await encodeFramesChunkedConcat(
+                framesDir,
+                framePattern,
+                videoOnlyPath,
+                encoderOpts,
+                chunkedEncodeSize,
+                abortSignal,
+              )
+            : await encodeFramesFromDir(
+                framesDir,
+                framePattern,
+                videoOnlyPath,
+                encoderOpts,
+                abortSignal,
+              );
           assertNotAborted();
 
           if (!encodeResult.success) {
-            throw new Error(`Streaming encode failed: ${encodeResult.error}`);
+            throw new Error(`Encoding failed: ${encodeResult.error}`);
           }
 
-          perfStages.captureMs = Date.now() - stage4Start;
-          perfStages.encodeMs = encodeResult.durationMs; // Overlapped with capture
-        } else {
-          // ── Disk-based capture (original flow) ────────────────────────────
-          const captureRes = await runCaptureStage({
-            fileServer,
-            workDir,
-            framesDir,
-            job,
-            totalFrames,
-            cfg,
-            log,
-            workerCount,
-            probeSession,
-            needsAlpha,
-            captureAttempts,
-            buildCaptureOptions,
-            createRenderVideoFrameInjector,
-            abortSignal,
-            assertNotAborted,
-            onProgress,
-          });
-          workerCount = captureRes.workerCount;
-          probeSession = captureRes.probeSession;
-          lastBrowserConsole = captureRes.lastBrowserConsole;
-
-          perfStages.captureMs = Date.now() - stage4Start;
-
-          if (isPngSequence) {
-            // ── Stage 5 (png-sequence): copy captured PNGs to outputDir ──────
-            // No encoder, no mux, no faststart — captured frames already carry
-            // alpha and are the deliverable. We rename to `frame_NNNNNN.png`
-            // (zero-padded) so consumers (After Effects, Nuke, Fusion, ffmpeg
-            // image2 demuxer) can globbed-import without surprises.
-            const stage5Start = Date.now();
-            updateJobStatus(job, "encoding", "Writing PNG sequence", 75, onProgress);
-            if (!existsSync(outputPath)) mkdirSync(outputPath, { recursive: true });
-            const captured = readdirSync(framesDir)
-              .filter((name) => name.endsWith(".png"))
-              .sort();
-            if (captured.length === 0) {
-              throw new Error(
-                `[Render] png-sequence output requested but no PNGs were captured to ${framesDir}`,
-              );
-            }
-            captured.forEach((name, i) => {
-              const dst = join(outputPath, `frame_${String(i + 1).padStart(6, "0")}.png`);
-              copyFileSync(join(framesDir, name), dst);
-            });
-            if (hasAudio && existsSync(audioOutputPath)) {
-              // Sidecar audio for callers that need to re-mux later. png-sequence
-              // has no container of its own, so this is the only place audio
-              // can land alongside the frames.
-              copyFileSync(audioOutputPath, join(outputPath, "audio.aac"));
-              log.info(
-                `[Render] png-sequence: audio.aac sidecar written to ${outputPath}/audio.aac`,
-              );
-            }
-            perfStages.encodeMs = Date.now() - stage5Start;
-          } else {
-            // ── Stage 5: Encode ───────────────────────────────────────────────
-            const stage5Start = Date.now();
-            updateJobStatus(job, "encoding", "Encoding video", 75, onProgress);
-
-            const frameExt = needsAlpha ? "png" : "jpg";
-            const framePattern = `frame_%06d.${frameExt}`;
-            const encoderOpts = {
-              fps: job.config.fps,
-              width,
-              height,
-              codec: preset.codec,
-              preset: preset.preset,
-              quality: effectiveQuality,
-              bitrate: effectiveBitrate,
-              pixelFormat: preset.pixelFormat,
-              useGpu: job.config.useGpu,
-              hdr: preset.hdr,
-            };
-            const encodeResult = enableChunkedEncode
-              ? await encodeFramesChunkedConcat(
-                  framesDir,
-                  framePattern,
-                  videoOnlyPath,
-                  encoderOpts,
-                  chunkedEncodeSize,
-                  abortSignal,
-                )
-              : await encodeFramesFromDir(
-                  framesDir,
-                  framePattern,
-                  videoOnlyPath,
-                  encoderOpts,
-                  abortSignal,
-                );
-            assertNotAborted();
-
-            if (!encodeResult.success) {
-              throw new Error(`Encoding failed: ${encodeResult.error}`);
-            }
-
-            perfStages.encodeMs = Date.now() - stage5Start;
-          }
-        }
-      } finally {
-        // Defensive cleanup: if the streaming encoder branch threw before
-        // currentEncoder.close() (e.g. capture failure, abort, broken pipe),
-        // the ffmpeg subprocess would otherwise leak. close() is idempotent so
-        // this is safe to call alongside the success-path close — we just gate
-        // on the flag to avoid redundant work.
-        if (streamingEncoder && !streamingEncoderClosed) {
-          try {
-            await streamingEncoder.close();
-          } catch (err) {
-            log.warn("streamingEncoder defensive close failed", {
-              err: err instanceof Error ? err.message : String(err),
-            });
-          }
+          perfStages.encodeMs = Date.now() - stage5Start;
         }
       }
     } // end SDR capture paths block
