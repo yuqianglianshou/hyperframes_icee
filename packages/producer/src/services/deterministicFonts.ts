@@ -246,7 +246,10 @@ function buildFontFaceRule(familyName: string, src: string, weight: string, styl
   ].join("\n");
 }
 
-async function buildFontFaceCss(requestedFamilies: Map<string, string>): Promise<{
+async function buildFontFaceCss(
+  requestedFamilies: Map<string, string>,
+  options: InternalFontFetchOptions,
+): Promise<{
   css: string;
   unresolved: string[];
 }> {
@@ -268,7 +271,7 @@ async function buildFontFaceCss(requestedFamilies: Map<string, string>): Promise
     }
 
     // Path 2: fetch from Google Fonts (with local cache)
-    const googleFaces = await fetchGoogleFont(originalCaseFamily);
+    const googleFaces = await fetchGoogleFont(originalCaseFamily, options);
     if (googleFaces.length > 0) {
       for (const face of googleFaces) {
         rules.push(buildFontFaceRule(originalCaseFamily, face.dataUri, face.weight, face.style));
@@ -341,21 +344,88 @@ type GoogleFontFace = {
   dataUri: string;
 };
 
-async function fetchGoogleFont(familyName: string): Promise<GoogleFontFace[]> {
+/**
+ * Typed code classifying a font-fetch failure as non-retryable for
+ * distributed workflow adapters — a missing Google Fonts entry will not heal
+ * on retry.
+ */
+export const FONT_FETCH_FAILED = "FONT_FETCH_FAILED";
+
+/**
+ * Typed error thrown by {@link injectDeterministicFontFaces} when
+ * `failClosedFontFetch === true` and an external font fetch fails. The
+ * default (swallow + warn) preserves the in-process behavior.
+ */
+export class FontFetchError extends Error {
+  readonly code: typeof FONT_FETCH_FAILED = FONT_FETCH_FAILED;
+  readonly familyName: string;
+  readonly url: string;
+  readonly cause?: unknown;
+
+  constructor(familyName: string, url: string, message: string, cause?: unknown) {
+    super(message);
+    this.name = "FontFetchError";
+    this.familyName = familyName;
+    this.url = url;
+    this.cause = cause;
+  }
+}
+
+/** Internal threading of the failClosed flag + fetch override through callers. */
+interface InternalFontFetchOptions {
+  failClosedFontFetch: boolean;
+  fetchImpl: typeof fetch;
+}
+
+/**
+ * Build a typed FontFetchError describing why a Google Fonts request failed.
+ * Centralizes the message wording so all four call sites (CSS/woff2 ×
+ * HTTP-error/exception) stay phrased identically.
+ */
+function fontFetchError(
+  familyName: string,
+  url: string,
+  what: "Google Fonts CSS" | `Google Fonts woff2 (${string}/${string})`,
+  cause: { status: number } | { error: unknown },
+): FontFetchError {
+  const reason =
+    "status" in cause
+      ? `returned HTTP ${cause.status}`
+      : `failed: ${(cause.error as Error).message}`;
+  const message =
+    `[deterministicFonts] ${what} fetch for ${JSON.stringify(familyName)} ${reason}. ` +
+    `Distributed renders require deterministic fonts; system-font fallback would produce ` +
+    `non-byte-identical output.`;
+  return new FontFetchError(familyName, url, message, "error" in cause ? cause.error : undefined);
+}
+
+async function fetchGoogleFont(
+  familyName: string,
+  options: InternalFontFetchOptions,
+): Promise<GoogleFontFace[]> {
   const slug = fontSlug(familyName);
   const encodedFamily = encodeURIComponent(familyName);
   const url = `https://fonts.googleapis.com/css2?family=${encodedFamily}:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700`;
 
   let cssText: string;
   try {
-    const res = await fetch(url, {
+    const res = await options.fetchImpl(url, {
       headers: { "User-Agent": WOFF2_USER_AGENT },
     });
     if (!res.ok) {
+      if (options.failClosedFontFetch) {
+        throw fontFetchError(familyName, url, "Google Fonts CSS", { status: res.status });
+      }
       return [];
     }
     cssText = await res.text();
-  } catch {
+  } catch (err) {
+    // Rethrow typed error untouched. Other errors (network, DNS) get wrapped
+    // when failClosed is on, swallowed otherwise.
+    if (err instanceof FontFetchError) throw err;
+    if (options.failClosedFontFetch) {
+      throw fontFetchError(familyName, url, "Google Fonts CSS", { error: err });
+    }
     return [];
   }
 
@@ -376,12 +446,22 @@ async function fetchGoogleFont(familyName: string): Promise<GoogleFontFace[]> {
 
     // Check cache first
     if (!existsSync(cachePath)) {
+      const woff2What = `Google Fonts woff2 (${weight}/${style})` as const;
       try {
-        const fontRes = await fetch(woff2Url);
-        if (!fontRes.ok) continue;
+        const fontRes = await options.fetchImpl(woff2Url);
+        if (!fontRes.ok) {
+          if (options.failClosedFontFetch) {
+            throw fontFetchError(familyName, woff2Url, woff2What, { status: fontRes.status });
+          }
+          continue;
+        }
         const buffer = Buffer.from(await fontRes.arrayBuffer());
         writeFileSync(cachePath, buffer);
-      } catch {
+      } catch (err) {
+        if (err instanceof FontFetchError) throw err;
+        if (options.failClosedFontFetch) {
+          throw fontFetchError(familyName, woff2Url, woff2What, { error: err });
+        }
         continue;
       }
     }
@@ -402,7 +482,39 @@ async function fetchGoogleFont(familyName: string): Promise<GoogleFontFace[]> {
 
 // ---------------------------------------------------------------------------
 
-export async function injectDeterministicFontFaces(html: string): Promise<string> {
+/**
+ * Options for {@link injectDeterministicFontFaces}.
+ */
+export interface InjectDeterministicFontFacesOptions {
+  /**
+   * When `true`, any external font fetch failure (Google Fonts CSS or
+   * woff2) throws {@link FontFetchError} with code `FONT_FETCH_FAILED`.
+   *
+   * Default `false`: failed fetches are silently swallowed; the composition
+   * falls back to system fonts via `warnUnresolvedFonts`. This preserves the
+   * in-process behavior.
+   *
+   * Distributed callers pass `true` so font availability is part of the
+   * planDir's content-addressed hash and fetch failures surface as typed
+   * non-retryable errors.
+   */
+  failClosedFontFetch?: boolean;
+  /**
+   * Injectable `fetch` implementation. Defaults to the global `fetch`.
+   * Tests pass a stub to simulate fetch failures without going over the
+   * network.
+   */
+  fetchImpl?: typeof fetch;
+}
+
+export async function injectDeterministicFontFaces(
+  html: string,
+  options: InjectDeterministicFontFacesOptions = {},
+): Promise<string> {
+  const failClosedFontFetch = options.failClosedFontFetch === true;
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const fetchOptions: InternalFontFetchOptions = { failClosedFontFetch, fetchImpl };
+
   const existingFaces = extractExistingFontFaces(html);
   const requestedFamilies = extractRequestedFontFamilies(html);
   const pendingFamilies = new Map<string, string>();
@@ -417,7 +529,7 @@ export async function injectDeterministicFontFaces(html: string): Promise<string
     return html;
   }
 
-  const { css, unresolved } = await buildFontFaceCss(pendingFamilies);
+  const { css, unresolved } = await buildFontFaceCss(pendingFamilies, fetchOptions);
   if (!css) {
     if (unresolved.length > 0) {
       warnUnresolvedFonts(unresolved);
