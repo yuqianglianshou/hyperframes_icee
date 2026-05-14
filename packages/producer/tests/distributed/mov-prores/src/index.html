@@ -88,6 +88,11 @@
     </div>
 
     <script>
+      // Same chunk-seam stressors as the mp4 siblings: a crossfade straddling
+      // the frame-30 seam (0.9-1.1s = frames 27-33) and a continuous icon
+      // rotation across every chunk boundary. The point with ProRes is the
+      // QuickTime atom contract — frame-level continuity is structurally
+      // satisfied because ProRes is intra-only.
       const tl = gsap.timeline({ paused: true });
       window.__timelines = window.__timelines || {};
       window.__timelines["main-comp"] = tl;
