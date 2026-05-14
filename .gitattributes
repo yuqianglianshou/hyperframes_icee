@@ -1,3 +1,9 @@
+# Normalize text files to LF on checkout and in the repo, regardless of the
+# contributor's OS. Without this, files saved on Windows can land in PRs with
+# CRLF endings or a UTF-8 BOM, which makes every line differ at the byte level
+# and trips GitHub's "Binary file not shown" diff heuristic.
+* text=auto eol=lf
+
 # Golden baseline videos for regression tests
 packages/producer/tests/*/output/output.mp4 filter=lfs diff=lfs merge=lfs -text
 
