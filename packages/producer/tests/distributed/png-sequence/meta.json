@@ -1,0 +1,17 @@
+{
+  "name": "Distributed: png-sequence",
+  "description": "60-frame composition (2s @ 30fps) with transparent background, text, and a rotating SVG icon. Output is a directory of zero-padded RGBA PNGs; the assemble path merges chunk frame directories rather than concat-copying mp4 files. renderConfig.chunkSize=15 produces N=4 chunks, exercising the per-frame state continuity across chunk seams that distinguishes the assemble path's directory-merge from mp4's concat-copy.",
+  "tags": ["distributed", "png-sequence", "alpha"],
+
+  "minPsnr": 30,
+  "maxFrameFailures": 0,
+
+  "minAudioCorrelation": 0.9,
+  "maxAudioLagWindows": 120,
+
+  "renderConfig": {
+    "fps": 30,
+    "format": "png-sequence",
+    "chunkSize": 15
+  }
+}

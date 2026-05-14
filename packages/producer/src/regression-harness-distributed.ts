@@ -70,7 +70,7 @@ export type DistributedSupportResult = { supported: true } | { supported: false;
  */
 export function checkDistributedSupport(renderConfig: {
   fps: Fps;
-  format?: "mp4" | "webm";
+  format?: "mp4" | "webm" | "mov" | "png-sequence";
   hdr?: boolean;
 }): DistributedSupportResult {
   if (renderConfig.fps.den !== 1) {
