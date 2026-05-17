@@ -103,6 +103,7 @@
               "catalog/components/caption-emoji-pop",
               "catalog/components/caption-glitch-rgb",
               "catalog/components/caption-gradient-fill",
+              "catalog/components/caption-highlight",
               "catalog/components/caption-kinetic-slam",
               "catalog/components/caption-matrix-decode",
               "catalog/components/caption-neon-accent",

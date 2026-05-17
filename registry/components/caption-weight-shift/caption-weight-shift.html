@@ -100,7 +100,7 @@
         white-space: nowrap;
         color: #ffffff;
         font-family: "Montserrat", Arial, sans-serif;
-        font-weight: 300;
+        font-weight: 200;
         font-size: 72px;
         letter-spacing: -0.03em;
         text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -142,10 +142,10 @@
       var WORD_SPACING = 12;
       var PAUSE_THRESHOLD = 0.1;
       var ENTRY_DURATION = 100 / 1000;
-      var WEIGHT_TRANSITION = 100 / 1000;
+      var WEIGHT_TRANSITION = 250 / 1000;
       var FONT_WIDTH_SAFETY = 1.14;
-      var FONT_WEIGHT_LIGHT = 300;
-      var FONT_WEIGHT_BOLD = 700;
+      var FONT_WEIGHT_LIGHT = 200;
+      var FONT_WEIGHT_BOLD = 900;
 
       var TRANSCRIPT = [
         { text: "Every", start: 0.0, end: 0.3 },
@@ -309,11 +309,17 @@
             var lineEl = document.createElement("div");
             lineEl.className = "caption-line";
             lineEl.id = "caption-group-" + groupIndex + "-line-" + lineIndex;
-            lineEl.style.fontWeight = lineIndex === 0 ? FONT_WEIGHT_BOLD : FONT_WEIGHT_LIGHT;
+            lineEl.style.fontWeight = FONT_WEIGHT_LIGHT;
             lineEl.style.fontSize = computedSize + "px";
-            line.words.forEach(function (word) {
+            line.words.forEach(function (word, wordIndex) {
               var wordEl = document.createElement("span");
+              wordEl.id = "cw-" + groupIndex + "-" + lineIndex + "-" + wordIndex;
               wordEl.textContent = word.text.toLowerCase();
+              wordEl.style.fontWeight = FONT_WEIGHT_LIGHT;
+              wordEl.style.display = "inline-block";
+              wordEl.style.transition = "none";
+              wordEl.dataset.start = word.start;
+              wordEl.dataset.end = word.end;
               lineEl.appendChild(wordEl);
             });
             copyEl.appendChild(lineEl);
@@ -357,22 +363,24 @@
           visibleStart,
         );
 
-        if (group.lines.length === 2) {
-          var line1El = document.getElementById("caption-group-" + groupIndex + "-line-0");
-          var line2El = document.getElementById("caption-group-" + groupIndex + "-line-1");
-          var line2FirstWord = group.lines[1].words[0];
-          var switchTime = line2FirstWord.start;
-          tl.to(
-            line1El,
-            { fontWeight: FONT_WEIGHT_LIGHT, duration: WEIGHT_TRANSITION, ease: "power2.out" },
-            switchTime,
-          );
-          tl.to(
-            line2El,
-            { fontWeight: FONT_WEIGHT_BOLD, duration: WEIGHT_TRANSITION, ease: "power2.out" },
-            switchTime,
-          );
-        }
+        group.lines.forEach(function (line, lineIndex) {
+          line.words.forEach(function (word, wordIndex) {
+            var wEl = document.getElementById(
+              "cw-" + groupIndex + "-" + lineIndex + "-" + wordIndex,
+            );
+            if (!wEl) return;
+            tl.to(
+              wEl,
+              { fontWeight: FONT_WEIGHT_BOLD, duration: WEIGHT_TRANSITION, ease: "power2.out" },
+              word.start,
+            );
+            tl.to(
+              wEl,
+              { fontWeight: FONT_WEIGHT_LIGHT, duration: WEIGHT_TRANSITION, ease: "power2.in" },
+              word.end,
+            );
+          });
+        });
 
         tl.set(groupEl, { opacity: 0 }, visibleEnd);
       });

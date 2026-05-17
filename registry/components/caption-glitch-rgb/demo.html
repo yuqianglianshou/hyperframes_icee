@@ -56,8 +56,8 @@
           to bottom,
           transparent 0px,
           transparent 3px,
-          rgba(0, 0, 0, 0.08) 3px,
-          rgba(0, 0, 0, 0.08) 4px
+          rgba(0, 0, 0, 0.18) 3px,
+          rgba(0, 0, 0, 0.18) 4px
         );
       }
       #gl-container {
@@ -240,10 +240,10 @@
             var wordEl = document.getElementById("gl-w-" + wi);
             var isKW = KEYWORDS.has(wi);
             var rng = mulberry32(wi * 777 + 13);
-            var j1 = (rng() - 0.5) * 10;
-            var j2 = (rng() - 0.5) * 8;
-            var j3 = (rng() - 0.5) * 6;
-            var shadowMag = 3 + rng() * 4;
+            var j1 = (rng() - 0.5) * 24;
+            var j2 = (rng() - 0.5) * 18;
+            var j3 = (rng() - 0.5) * 14;
+            var shadowMag = 6 + rng() * 8;
             var sm = shadowMag.toFixed(1);
 
             tl.to(

@@ -169,7 +169,7 @@
           var ws = pair[0],
             we = pair[1];
           var nextStart = gi + 1 < RAW_GROUPS.length ? WORDS[RAW_GROUPS[gi + 1][0]].start : 8.0;
-          var gEnd = Math.min(WORDS[we].end + 0.35, nextStart - 0.05);
+          var gEnd = Math.min(WORDS[we].end + 0.5, nextStart - 0.05);
           return { wordStart: ws, wordEnd: we, start: WORDS[ws].start, end: gEnd };
         });
 
@@ -210,13 +210,13 @@
 
             tl.to(
               wordEl,
-              { clipPath: "inset(0 0% 0 0)", duration: 0.15, ease: "power3.out" },
+              { clipPath: "inset(0 0% 0 0)", duration: 0.3, ease: "power2.out" },
               w.start,
             );
             if (isKW) {
               tl.to(wordEl, { color: "#FFD700", duration: 0.05 }, w.start + 0.1);
             }
-            tl.to(wordEl, { color: "rgba(255,255,255,0.4)", duration: 0.12 }, w.end);
+            tl.to(wordEl, { color: "rgba(255,255,255,0.4)", duration: 0.2 }, w.end);
           });
 
           var wordEls = grp.querySelectorAll(".wp-word");
@@ -224,7 +224,7 @@
             wordEls,
             {
               clipPath: "inset(0 0% 0 100%)",
-              duration: 0.14,
+              duration: 0.25,
               stagger: 0.04,
               ease: "power2.in",
             },

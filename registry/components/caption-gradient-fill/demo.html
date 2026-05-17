@@ -233,11 +233,11 @@
           groupWords.forEach(function (w, i) {
             var wi = g.wordStart + i;
             var el = document.getElementById("gr-w-" + wi);
-            tl.to(el, { opacity: 1, scale: 1.1, duration: 0.08 }, w.start);
-            tl.to(el, { opacity: 0.3, scale: 1, duration: 0.08 }, w.end);
+            tl.to(el, { opacity: 1, scale: 1.1, duration: 0.15 }, w.start);
+            tl.to(el, { opacity: 0.3, scale: 1, duration: 0.15 }, w.end);
           });
 
-          tl.to(grp, { y: -26, opacity: 0, duration: 0.18 }, g.end - 0.18);
+          tl.to(grp, { y: -26, opacity: 0, duration: 0.25 }, g.end - 0.25);
           tl.set(grp, { opacity: 0, visibility: "hidden" }, g.end);
         });
 

@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1920, height=1080" />
-    <title>Glitch RGB</title>
+    <title>Highlight</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@800&display=swap"
       rel="stylesheet"
     />
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
@@ -25,14 +25,14 @@
         overflow: hidden;
         background: #0a0a0a;
       }
-      #glitch-rgb {
+      #highlight {
         position: relative;
         width: 1920px;
         height: 1080px;
         overflow: hidden;
         background: #0a0a0a;
       }
-      #gl-video {
+      #hl-video {
         position: absolute;
         inset: 0;
         z-index: 0;
@@ -40,63 +40,65 @@
         height: 100%;
         object-fit: cover;
       }
-      .gl-overlay {
+      .hl-overlay {
         position: absolute;
         inset: 0;
-        background: rgba(0, 0, 0, 0.45);
+        background: rgba(0, 0, 0, 0.4);
         z-index: 1;
         pointer-events: none;
       }
-      .gl-scanlines {
-        position: absolute;
-        inset: 0;
-        z-index: 5;
-        pointer-events: none;
-        background: repeating-linear-gradient(
-          to bottom,
-          transparent 0px,
-          transparent 3px,
-          rgba(0, 0, 0, 0.18) 3px,
-          rgba(0, 0, 0, 0.18) 4px
-        );
-      }
-      #gl-container {
+      #hl-container {
         position: absolute;
         inset: 0;
         z-index: 10;
         pointer-events: none;
       }
-      .gl-group {
+      .hl-group {
         position: absolute;
-        bottom: 120px;
+        bottom: 140px;
         left: 0;
         width: 100%;
         display: flex;
         flex-wrap: wrap;
         align-items: flex-end;
         justify-content: center;
-        gap: 24px;
+        gap: 16px;
         padding: 0 100px;
         opacity: 0;
         visibility: hidden;
       }
-      .gl-word {
-        font-family: "Space Grotesk", sans-serif;
-        font-weight: 700;
-        font-size: 88px;
+      .hl-word {
+        font-family: "Montserrat", sans-serif;
+        font-weight: 800;
+        font-size: 80px;
         text-transform: uppercase;
-        color: rgba(180, 230, 255, 0.45);
+        color: #ffffff;
         display: inline-block;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.02em;
         line-height: 1;
-        will-change: transform, text-shadow, color;
+        position: relative;
+        padding: 8px 16px;
+        will-change: transform;
+      }
+      .hl-word-bg {
+        position: absolute;
+        inset: 0;
+        background: #e5143a;
+        border-radius: 8px;
+        transform: scaleX(0);
+        transform-origin: 0% 50%;
+        z-index: -1;
+      }
+      .hl-word-text {
+        position: relative;
+        z-index: 1;
       }
     </style>
   </head>
   <body>
     <div
-      id="glitch-rgb"
-      data-composition-id="caption-glitch-rgb"
+      id="highlight"
+      data-composition-id="caption-highlight"
       data-start="0"
       data-duration="8"
       data-fps="30"
@@ -104,7 +106,7 @@
       data-height="1080"
     >
       <video
-        id="gl-video"
+        id="hl-video"
         muted
         playsinline
         data-start="0"
@@ -112,9 +114,8 @@
         data-track-index="0"
         data-has-audio="false"
       ></video>
-      <div class="gl-overlay"></div>
-      <div class="gl-scanlines"></div>
-      <div id="gl-container"></div>
+      <div class="hl-overlay"></div>
+      <div id="hl-container"></div>
     </div>
 
     <script>
@@ -132,16 +133,6 @@
             size -= 2;
           }
           return minSize;
-        }
-
-        function mulberry32(seed) {
-          return function () {
-            seed |= 0;
-            seed = (seed + 0x6d2b79f5) | 0;
-            var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-          };
         }
 
         var WORDS = [
@@ -175,9 +166,6 @@
           { text: "cinema.", start: 7.3, end: 7.7 },
         ];
 
-        // Keywords get white + glow on activation
-        var KEYWORDS = new Set([8, 12, 15, 24, 27]); // HyperFrames, HTML, professional, code, cinema.
-
         var RAW_GROUPS = [
           [0, 3],
           [4, 7],
@@ -194,35 +182,44 @@
           var ws = pair[0],
             we = pair[1];
           var nextStart = gi + 1 < RAW_GROUPS.length ? WORDS[RAW_GROUPS[gi + 1][0]].start : 8.0;
-          var gEnd = Math.min(WORDS[we].end + 0.35, nextStart - 0.05);
+          var gEnd = Math.min(WORDS[we].end + 0.5, nextStart - 0.05);
           return { wordStart: ws, wordEnd: we, start: WORDS[ws].start, end: gEnd };
         });
 
-        var BASE_FONT = 88;
-        var container = document.getElementById("gl-container");
+        var container = document.getElementById("hl-container");
         var tl = gsap.timeline({ paused: true });
 
         GROUPS.forEach(function (g, gi) {
           var groupWords = WORDS.slice(g.wordStart, g.wordEnd + 1);
           var grp = document.createElement("div");
-          grp.className = "gl-group";
-          grp.id = "gl-grp-" + gi;
+          grp.className = "hl-group";
+          grp.id = "hl-grp-" + gi;
 
           var groupText = groupWords
             .map(function (w) {
               return w.text.toUpperCase();
             })
             .join(" ");
-          var computedSize = fitFontSize(groupText, BASE_FONT, "700", "Space Grotesk", 1720);
+          var computedSize = fitFontSize(groupText, 80, "800", "Montserrat", 1620);
 
           groupWords.forEach(function (w, i) {
             var wi = g.wordStart + i;
-            var span = document.createElement("span");
-            span.className = "gl-word";
-            span.id = "gl-w-" + wi;
-            span.textContent = w.text.toUpperCase();
-            span.style.fontSize = computedSize + "px";
-            grp.appendChild(span);
+            var wordEl = document.createElement("span");
+            wordEl.className = "hl-word";
+            wordEl.id = "hl-w-" + wi;
+            wordEl.style.fontSize = computedSize + "px";
+
+            var bgEl = document.createElement("span");
+            bgEl.className = "hl-word-bg";
+            bgEl.id = "hl-bg-" + wi;
+
+            var textEl = document.createElement("span");
+            textEl.className = "hl-word-text";
+            textEl.textContent = w.text.toUpperCase();
+
+            wordEl.appendChild(bgEl);
+            wordEl.appendChild(textEl);
+            grp.appendChild(wordEl);
           });
 
           container.appendChild(grp);
@@ -230,82 +227,33 @@
           tl.set(grp, { visibility: "visible" }, g.start);
           tl.fromTo(
             grp,
-            { opacity: 0, x: -8 },
-            { opacity: 1, x: 0, duration: 0.18, ease: "power3.out" },
+            { opacity: 0, y: 20 },
+            { opacity: 1, y: 0, duration: 0.2, ease: "power3.out" },
             g.start,
           );
 
           groupWords.forEach(function (w, i) {
             var wi = g.wordStart + i;
-            var wordEl = document.getElementById("gl-w-" + wi);
-            var isKW = KEYWORDS.has(wi);
-            var rng = mulberry32(wi * 777 + 13);
-            var j1 = (rng() - 0.5) * 24;
-            var j2 = (rng() - 0.5) * 18;
-            var j3 = (rng() - 0.5) * 14;
-            var shadowMag = 6 + rng() * 8;
-            var sm = shadowMag.toFixed(1);
+            var bgEl = document.getElementById("hl-bg-" + wi);
+            var wordEl = document.getElementById("hl-w-" + wi);
 
+            tl.to(bgEl, { scaleX: 1, duration: 0.15, ease: "power2.out" }, w.start);
+            tl.to(wordEl, { scale: 1.08, duration: 0.08, ease: "power2.out" }, w.start);
+            tl.to(wordEl, { scale: 1, duration: 0.12, ease: "power2.inOut" }, w.start + 0.08);
             tl.to(
-              wordEl,
-              {
-                x: j1,
-                color: "#ffffff",
-                textShadow: sm + "px 0 #ff003c, -" + sm + "px 0 #00e5ff",
-                duration: 0.045,
-                ease: "none",
-              },
-              w.start,
-            );
-            tl.to(
-              wordEl,
-              {
-                x: j2,
-                textShadow:
-                  "-" +
-                  (shadowMag * 0.7).toFixed(1) +
-                  "px 0 #ff003c, " +
-                  (shadowMag * 0.7).toFixed(1) +
-                  "px 0 #00e5ff",
-                duration: 0.038,
-                ease: "none",
-              },
-              w.start + 0.045,
-            );
-            tl.to(
-              wordEl,
-              {
-                x: j3,
-                textShadow: sm + "px 0 #ff003c, -" + sm + "px 0 #00e5ff",
-                duration: 0.03,
-                ease: "none",
-              },
-              w.start + 0.083,
-            );
-            tl.to(
-              wordEl,
-              {
-                x: 0,
-                textShadow: "none",
-                color: isKW ? "#ffffff" : "#00e5ff",
-                duration: 0.05,
-                ease: "power2.out",
-              },
-              w.start + 0.113,
-            );
-            tl.to(
-              wordEl,
-              { color: "rgba(180,230,255,0.4)", textShadow: "none", duration: 0.12 },
+              bgEl,
+              { scaleX: 0, transformOrigin: "100% 50%", duration: 0.12, ease: "power2.in" },
               w.end,
             );
+            tl.set(bgEl, { transformOrigin: "0% 50%" }, w.end + 0.12);
           });
 
-          tl.to(grp, { opacity: 0, x: 8, duration: 0.15 }, g.end - 0.15);
+          tl.to(grp, { opacity: 0, y: -15, duration: 0.2, ease: "power2.in" }, g.end - 0.2);
           tl.set(grp, { opacity: 0, visibility: "hidden" }, g.end);
         });
 
         tl.seek(0);
-        window.__timelines["caption-glitch-rgb"] = tl;
+        window.__timelines["caption-highlight"] = tl;
       })();
     </script>
   </body>
