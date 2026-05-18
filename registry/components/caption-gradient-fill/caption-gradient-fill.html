@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Nunito:wght@900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap"
       rel="stylesheet"
     />
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
@@ -32,21 +32,6 @@
         overflow: hidden;
         background: #0a0a0a;
       }
-      #gr-video {
-        position: absolute;
-        inset: 0;
-        z-index: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-      .gr-overlay {
-        position: absolute;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.42);
-        z-index: 1;
-        pointer-events: none;
-      }
       #gr-container {
         position: absolute;
         inset: 0;
@@ -68,16 +53,18 @@
         visibility: hidden;
       }
       .gr-word {
-        font-family: "Nunito", sans-serif;
+        font-family: "Montserrat", sans-serif;
         font-weight: 900;
         font-size: 100px;
         display: inline-block;
         letter-spacing: 0.04em;
-        line-height: 1;
+        line-height: 1.15;
+        padding-bottom: 0.05em;
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
-        opacity: 0.3;
+        background-size: 350% 100%;
+        background-position: 100% 0;
       }
     </style>
   </head>
@@ -100,7 +87,6 @@
         data-track-index="0"
         data-has-audio="false"
       ></video>
-      <div class="gr-overlay"></div>
       <div id="gr-container"></div>
     </div>
 
@@ -157,31 +143,19 @@
           { wordStart: 4, wordEnd: 7, start: 1.1, end: 2.05 },
           { wordStart: 8, wordEnd: 8, start: 2.1, end: 2.6 },
           { wordStart: 9, wordEnd: 12, start: 2.65, end: 3.5 },
-          { wordStart: 13, wordEnd: 15, start: 3.55, end: 4.4 },
-          { wordStart: 16, wordEnd: 16, start: 3.95, end: 4.75 },
-          { wordStart: 17, wordEnd: 19, start: 4.9, end: 5.4 },
-          { wordStart: 20, wordEnd: 22, start: 5.65, end: 6.2 },
+          { wordStart: 13, wordEnd: 14, start: 3.55, end: 3.9 },
+          { wordStart: 15, wordEnd: 16, start: 3.95, end: 4.75 },
+          { wordStart: 17, wordEnd: 18, start: 4.9, end: 5.4 },
+          { wordStart: 19, wordEnd: 22, start: 5.5, end: 6.2 },
           { wordStart: 23, wordEnd: 24, start: 6.35, end: 6.75 },
           { wordStart: 25, wordEnd: 27, start: 6.8, end: 7.8 },
         ];
 
-        // Enhanced gradient palette with accent for keywords
-        var GRADS = [
-          "linear-gradient(135deg,#FF6B6B,#FFD700)",
-          "linear-gradient(135deg,#4ADE80,#22D3EE)",
-          "linear-gradient(135deg,#818CF8,#E879F9)",
-          "linear-gradient(135deg,#FFD700,#FF6B35)",
-          "linear-gradient(135deg,#22D3EE,#4ADE80)",
-          "linear-gradient(135deg,#E879F9,#818CF8)",
-          "linear-gradient(135deg,#FF3366,#FF6B35)",
-        ];
-        var KEYWORD_GRADS = {
-          8: "linear-gradient(135deg,#FF6B6B,#FFD700,#FF6B6B)", // HyperFrames
-          12: "linear-gradient(135deg,#22D3EE,#ffffff,#22D3EE)", // HTML
-          15: "linear-gradient(135deg,#818CF8,#E879F9,#818CF8)", // professional
-          24: "linear-gradient(135deg,#00F5D4,#22D3EE,#00F5D4)", // code
-          27: "linear-gradient(135deg,#FFD700,#FF6B35,#FFD700)", // cinema.
-        };
+        var SIRI_GRAD =
+          "linear-gradient(90deg, " +
+          "#fe9f1b 0%, #f76e49 10%, #ff2063 20%, " +
+          "#fd56cb 30%, #ef7aff 40%, #fe9f1b 50%, " +
+          "white 50.5%, white 100%)";
 
         var container = document.getElementById("gr-container");
         var tl = gsap.timeline({ paused: true });
@@ -193,7 +167,7 @@
               return w.text;
             })
             .join(" ");
-          var fontSize = fitFontSize(groupText, 100, "900", "'Nunito', sans-serif", 1760);
+          var fontSize = fitFontSize(groupText, 100, "900", "'Montserrat', sans-serif", 1760);
           var grp = document.createElement("div");
           grp.className = "gr-group";
           grp.id = "gr-grp-" + gi;
@@ -205,40 +179,44 @@
             span.id = "gr-w-" + wi;
             span.textContent = w.text;
             span.style.fontSize = fontSize + "px";
-            var grad = KEYWORD_GRADS[wi] || GRADS[wi % 7];
-            span.style.background = grad;
+            span.style.background = SIRI_GRAD;
+            span.style.backgroundSize = "350% 100%";
+            span.style.backgroundPosition = "100% 0";
             span.style.webkitBackgroundClip = "text";
             span.style.backgroundClip = "text";
-            span.style.color = "transparent";
             grp.appendChild(span);
           });
 
           container.appendChild(grp);
 
-          var gs = g.start;
+          tl.set(grp, { visibility: "visible", opacity: 1 }, g.start);
+
+          var lastWordEnd = groupWords[groupWords.length - 1].end;
+          var nextStart = gi < GROUPS.length - 1 ? GROUPS[gi + 1].start : lastWordEnd + 0.5;
+          var gap = nextStart - lastWordEnd;
+          var fadeDur = Math.min(0.25, gap * 0.8);
+          var fadeStart = nextStart - fadeDur;
+          var groupEnd = nextStart;
+
           groupWords.forEach(function (w, i) {
             var wi = g.wordStart + i;
             var el = document.getElementById("gr-w-" + wi);
-            tl.set(el, { opacity: 0, y: 55, scale: 0.35 }, gs);
+            var dur = w.end - w.start;
+
+            tl.set(el, { backgroundPosition: "100% 0", scale: 1 }, g.start);
+            tl.set(el, { scale: 1.04 }, w.start);
             tl.fromTo(
               el,
-              { y: 55, scale: 0.35, opacity: 0 },
-              { y: 0, scale: 1, opacity: 0.35, duration: 0.55, ease: "elastic.out(1.6,0.4)" },
-              gs + i * 0.05,
+              { backgroundPosition: "45% 0" },
+              { backgroundPosition: "0% 0", duration: dur, ease: "none" },
+              w.start,
             );
+            tl.set(el, { backgroundPosition: "100% 0" }, w.end);
+            tl.to(el, { scale: 1, duration: 0.15, ease: "power2.out" }, w.end);
           });
 
-          tl.set(grp, { visibility: "visible", opacity: 1 }, gs);
-
-          groupWords.forEach(function (w, i) {
-            var wi = g.wordStart + i;
-            var el = document.getElementById("gr-w-" + wi);
-            tl.to(el, { opacity: 1, scale: 1.1, duration: 0.08 }, w.start);
-            tl.to(el, { opacity: 0.3, scale: 1, duration: 0.08 }, w.end);
-          });
-
-          tl.to(grp, { y: -26, opacity: 0, duration: 0.18 }, g.end - 0.18);
-          tl.set(grp, { opacity: 0, visibility: "hidden" }, g.end);
+          tl.to(grp, { opacity: 0, duration: fadeDur }, fadeStart);
+          tl.set(grp, { visibility: "hidden" }, groupEnd);
         });
 
         window.__timelines["caption-gradient-fill"] = tl;
