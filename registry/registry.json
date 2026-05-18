@@ -40,6 +40,30 @@
       "type": "hyperframes:block"
     },
     {
+      "name": "us-map",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "us-map-bubble",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "us-map-hex",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "us-map-flow",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "world-map",
+      "type": "hyperframes:block"
+    },
+    {
+      "name": "spain-map",
+      "type": "hyperframes:block"
+    },
+    {
       "name": "flowchart",
       "type": "hyperframes:block"
     },

@@ -37,8 +37,16 @@ export const adapterRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> 
 
     const usesThree = allScriptTexts.some((t) => /\bTHREE\./.test(t));
     const hasThreeScript = allScriptSrcs.some((src) => /three/i.test(src));
+    const hasThreeImportMap = allScriptTexts.some(
+      (t) =>
+        /["']three["']/.test(t) &&
+        /importmap/.test(scripts.find((s) => s.content === t)?.attrs || ""),
+    );
+    const hasThreeModuleImport = allScriptTexts.some(
+      (t) => /\bimport\b.*['"]three['"]/.test(t) || /\bfrom\s+['"]three['"]/.test(t),
+    );
 
-    if (!usesThree || hasThreeScript) return [];
+    if (!usesThree || hasThreeScript || hasThreeImportMap || hasThreeModuleImport) return [];
     return [
       {
         code: "missing_three_script",

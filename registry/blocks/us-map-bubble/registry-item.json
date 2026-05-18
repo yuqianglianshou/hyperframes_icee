@@ -1,0 +1,20 @@
+{
+  "$schema": "https://hyperframes.heygen.com/schema/registry-item.json",
+  "name": "us-map-bubble",
+  "type": "hyperframes:block",
+  "title": "US Bubble Map",
+  "description": "Animated US bubble map with proportional city markers, value callouts, and connection lines — composable with us-map",
+  "tags": ["data", "map", "geography", "usa", "bubble", "cities"],
+  "dimensions": {
+    "width": 1920,
+    "height": 1080
+  },
+  "duration": 12,
+  "files": [
+    {
+      "path": "us-map-bubble.html",
+      "target": "compositions/us-map-bubble.html",
+      "type": "hyperframes:composition"
+    }
+  ]
+}

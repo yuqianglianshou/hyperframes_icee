@@ -964,6 +964,11 @@ export function initSandboxRuntimeModular(): void {
     return true;
   };
 
+  (window as Window & { __hfForceTimelineRebind?: () => void }).__hfForceTimelineRebind = () => {
+    childrenBound = false;
+    bindRootTimelineIfAvailable();
+  };
+
   const emitRootStageLayoutDiagnostics = () => {
     const rootNode = resolveRootCompositionElement();
     if (!(rootNode instanceof HTMLElement)) {

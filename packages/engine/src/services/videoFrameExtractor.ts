@@ -512,8 +512,10 @@ export function resolveProjectRelativeSrc(
   baseDir: string,
   compiledDir?: string,
 ): string {
-  const fromCompiled = compiledDir ? join(compiledDir, src) : null;
-  const fromBase = join(baseDir, src);
+  const qIdx = src.indexOf("?");
+  const cleanSrc = qIdx >= 0 ? src.slice(0, qIdx) : src;
+  const fromCompiled = compiledDir ? join(compiledDir, cleanSrc) : null;
+  const fromBase = join(baseDir, cleanSrc);
   const candidates: string[] = [];
   if (fromCompiled) candidates.push(fromCompiled);
   candidates.push(fromBase);
@@ -528,7 +530,7 @@ export function resolveProjectRelativeSrc(
     // then strip any remaining leading `..` segments. Stripping `..` from the
     // raw input would leave dangling siblings (`assets/../../assets/foo`
     // would become `assets/assets/foo` instead of `assets/foo`).
-    const normalized = posix.normalize(src.replace(/\\/g, "/"));
+    const normalized = posix.normalize(cleanSrc.replace(/\\/g, "/"));
     const stripped = normalized.replace(/^(\.\.\/)+/, "");
     if (stripped && stripped !== src && !stripped.startsWith("..")) {
       if (compiledDir) candidates.push(join(compiledDir, stripped));

@@ -157,7 +157,11 @@ export const coreRules: Array<(ctx: LintContext) => HyperframeLintFinding[]> = [
     const findings: HyperframeLintFinding[] = [];
     for (const script of scripts) {
       const attrs = script.attrs || "";
-      if (/\bsrc\s*=/.test(attrs) || /\btype\s*=\s*["']application\/json["']/.test(attrs)) continue;
+      if (
+        /\bsrc\s*=/.test(attrs) ||
+        /\btype\s*=\s*["'](?:application\/json|importmap|module)["']/.test(attrs)
+      )
+        continue;
       const syntaxError = getInlineScriptSyntaxError(script.content);
       if (!syntaxError) continue;
       findings.push({

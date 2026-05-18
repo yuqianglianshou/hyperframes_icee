@@ -578,6 +578,18 @@ function inlineSubCompositions(
     },
   );
 
+  // Set data-hf-authored-id on host elements so the scoped script proxy
+  // can rewrite #id selectors (e.g. #us-map → [data-hf-authored-id="us-map"]).
+  // Unlike flattenInnerRoot (which changes DOM structure and breaks baselines),
+  // this preserves the existing innerHTML-based inlining while enabling the
+  // authored-id selector contract.
+  for (const hostEl of hosts) {
+    const compId = hostEl.getAttribute("data-composition-id");
+    if (compId && !hostEl.getAttribute("data-hf-authored-id")) {
+      hostEl.setAttribute("data-hf-authored-id", compId);
+    }
+  }
+
   // Producer-specific: set explicit pixel dimensions on host elements so
   // children using width/height: 100% resolve correctly. The runtime does
   // this automatically but compiled HTML needs it inline.

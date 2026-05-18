@@ -545,6 +545,22 @@
     "preview": "https://static.heygen.ai/hyperframes-oss/docs/images/catalog/components/shimmer-sweep.png"
   },
   {
+    "name": "spain-map",
+    "type": "block",
+    "title": "Spain Map",
+    "description": "Animated Spain choropleth by autonomous community with staggered reveals and gradient legend — D3 conic conformal projection",
+    "tags": [
+      "data",
+      "map",
+      "geography",
+      "spain",
+      "europe",
+      "choropleth"
+    ],
+    "href": "/catalog/blocks/spain-map",
+    "preview": "https://static.heygen.ai/hyperframes-oss/docs/images/catalog/blocks/spain-map.png"
+  },
+  {
     "name": "spotify-card",
     "type": "block",
     "title": "Spotify Now Playing",
@@ -778,6 +794,70 @@
     "preview": "https://static.heygen.ai/hyperframes-oss/docs/images/catalog/blocks/ui-3d-reveal.png"
   },
   {
+    "name": "us-map",
+    "type": "block",
+    "title": "US Map",
+    "description": "Animated US choropleth map with staggered state reveals, value labels, and gradient legend — pure inline SVG with GSAP",
+    "tags": [
+      "data",
+      "map",
+      "geography",
+      "usa",
+      "choropleth"
+    ],
+    "href": "/catalog/blocks/us-map",
+    "preview": "https://static.heygen.ai/hyperframes-oss/docs/images/catalog/blocks/us-map.png"
+  },
+  {
+    "name": "us-map-bubble",
+    "type": "block",
+    "title": "US Bubble Map",
+    "description": "Animated US bubble map with proportional city markers, value callouts, and connection lines — composable with us-map",
+    "tags": [
+      "data",
+      "map",
+      "geography",
+      "usa",
+      "bubble",
+      "cities"
+    ],
+    "href": "/catalog/blocks/us-map-bubble",
+    "preview": "https://static.heygen.ai/hyperframes-oss/docs/images/catalog/blocks/us-map-bubble.png"
+  },
+  {
+    "name": "us-map-flow",
+    "type": "block",
+    "title": "US Flow Map",
+    "description": "Animated connection arcs between US cities over a base map — composable origin-destination flow visualization",
+    "tags": [
+      "data",
+      "map",
+      "geography",
+      "usa",
+      "flow",
+      "connections",
+      "arcs"
+    ],
+    "href": "/catalog/blocks/us-map-flow",
+    "preview": "https://static.heygen.ai/hyperframes-oss/docs/images/catalog/blocks/us-map-flow.png"
+  },
+  {
+    "name": "us-map-hex",
+    "type": "block",
+    "title": "US Hex Grid Map",
+    "description": "Animated hexagonal tile grid map — each state as an equal-weight hex with data fill and abbreviation label",
+    "tags": [
+      "data",
+      "map",
+      "geography",
+      "usa",
+      "hexgrid",
+      "tilegrid"
+    ],
+    "href": "/catalog/blocks/us-map-hex",
+    "preview": "https://static.heygen.ai/hyperframes-oss/docs/images/catalog/blocks/us-map-hex.png"
+  },
+  {
     "name": "vfx-iphone-device",
     "type": "block",
     "title": "iPhone & MacBook 3D Showcase",
@@ -910,6 +990,21 @@
     ],
     "href": "/catalog/blocks/whip-pan",
     "preview": "https://static.heygen.ai/hyperframes-oss/docs/images/catalog/blocks/whip-pan.png"
+  },
+  {
+    "name": "world-map",
+    "type": "block",
+    "title": "World Map",
+    "description": "Animated world choropleth with country-by-country reveal, tooltip labels, and rotating globe inset — D3 Natural Earth projection",
+    "tags": [
+      "data",
+      "map",
+      "geography",
+      "world",
+      "choropleth"
+    ],
+    "href": "/catalog/blocks/world-map",
+    "preview": "https://static.heygen.ai/hyperframes-oss/docs/images/catalog/blocks/world-map.png"
   },
   {
     "name": "x-post",

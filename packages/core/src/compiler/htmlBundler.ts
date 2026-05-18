@@ -368,7 +368,7 @@ function parseHostVariableValues(host: Element): Record<string, unknown> {
   return parsed as Record<string, unknown>;
 }
 
-const FLATTENED_INNER_ROOT_STRIP_ATTRS = [
+export const FLATTENED_INNER_ROOT_STRIP_ATTRS = [
   "data-composition-id",
   "data-composition-file",
   "data-start",
@@ -381,7 +381,7 @@ const FLATTENED_INNER_ROOT_STRIP_ATTRS = [
   "data-hf-authored-end",
 ];
 
-function prepareFlattenedInnerRoot(innerRoot: Element): Element {
+export function prepareFlattenedInnerRoot(innerRoot: Element): Element {
   const prepared = innerRoot.cloneNode(true) as Element;
   const authoredRootId = prepared.getAttribute("id")?.trim();
   for (const attrName of FLATTENED_INNER_ROOT_STRIP_ATTRS) {
