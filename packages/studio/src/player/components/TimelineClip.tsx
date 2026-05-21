@@ -51,14 +51,14 @@ export const TimelineClip = memo(function TimelineClip({
   const handleOpacity = getClipHandleOpacity({ isHovered, isSelected, isDragging });
 
   const borderColor = isSelected
-    ? theme.clipBorderActive
+    ? trackStyle.accent + "60"
     : isHovered
       ? theme.clipBorderHover
       : theme.clipBorder;
   const boxShadow = isDragging
     ? theme.clipShadowDragging
     : isSelected
-      ? theme.clipShadowActive
+      ? `0 0 0 1px ${trackStyle.accent}40`
       : isHovered
         ? theme.clipShadowHover
         : theme.clipShadow;
@@ -77,20 +77,14 @@ export const TimelineClip = memo(function TimelineClip({
         top: clipY,
         bottom: clipY,
         borderRadius: theme.clipRadius,
-        background: isSelected
-          ? `linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0)), linear-gradient(120deg, ${trackStyle.accent}22, transparent 28%), ${theme.clipBackgroundActive}`
-          : `linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0)), linear-gradient(120deg, ${trackStyle.accent}1e, transparent 28%), ${theme.clipBackground}`,
-        backgroundImage:
-          isComposition && !hasCustomContent
-            ? `repeating-linear-gradient(135deg, transparent, transparent 3px, rgba(255,255,255,0.05) 3px, rgba(255,255,255,0.05) 6px)`
-            : undefined,
+        background: trackStyle.clip,
         border: `1px solid ${borderColor}`,
         boxShadow,
-        transition:
-          "border-color 120ms ease-out, box-shadow 140ms ease-out, background 140ms ease-out",
+        transition: "border-color 100ms, box-shadow 100ms",
         zIndex: isDragging ? 20 : isSelected ? 10 : isHovered ? 5 : 1,
         cursor: capabilities.canMove ? "grab" : "default",
         transform: isDragging ? "translateY(-1px)" : undefined,
+        opacity: isDragging ? 0.92 : 1,
       }}
       title={
         isComposition
@@ -103,78 +97,80 @@ export const TimelineClip = memo(function TimelineClip({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
+      {/* Left accent stripe */}
       <div
         aria-hidden="true"
-        role="presentation"
-        onPointerDown={(e) => onResizeStart?.("start", e)}
         style={{
           position: "absolute",
           left: 0,
           top: 0,
           bottom: 0,
-          width: 18,
-          opacity: showHandles && capabilities.canTrimStart ? 1 : 0,
-          pointerEvents: onResizeStart && capabilities.canTrimStart ? "auto" : "none",
-          zIndex: 4,
-          transition: "opacity 120ms ease-out",
-          cursor: "col-resize",
-          background:
-            showHandles && capabilities.canTrimStart
-              ? `linear-gradient(90deg, ${trackStyle.accent}4d 0%, ${trackStyle.accent}22 42%, transparent 100%)`
-              : "transparent",
+          width: 3,
+          background: trackStyle.accent,
+          opacity: isSelected ? 0.7 : 0.3,
+          borderRadius: `${theme.clipRadius} 0 0 ${theme.clipRadius}`,
+          zIndex: 2,
+          pointerEvents: "none",
         }}
-      >
+      />
+      {/* Left trim handle */}
+      {showHandles && capabilities.canTrimStart && (
         <div
+          aria-hidden="true"
+          onPointerDown={(e) => onResizeStart?.("start", e)}
           style={{
             position: "absolute",
-            left: 6,
-            top: 7,
-            bottom: 7,
-            width: 3,
-            borderRadius: 999,
-            background: theme.handleColor,
-            boxShadow: `0 0 0 1px ${trackStyle.accent}38, 0 0 12px ${trackStyle.accent}18`,
-            opacity: handleOpacity,
-            pointerEvents: "none",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 14,
+            cursor: "col-resize",
+            zIndex: 4,
           }}
-        />
-      </div>
-      <div
-        aria-hidden="true"
-        role="presentation"
-        onPointerDown={(e) => onResizeStart?.("end", e)}
-        style={{
-          position: "absolute",
-          right: 0,
-          top: 0,
-          bottom: 0,
-          width: 18,
-          opacity: showHandles && capabilities.canTrimEnd ? 1 : 0,
-          pointerEvents: onResizeStart && capabilities.canTrimEnd ? "auto" : "none",
-          zIndex: 4,
-          transition: "opacity 120ms ease-out",
-          cursor: "col-resize",
-          background:
-            showHandles && capabilities.canTrimEnd
-              ? `linear-gradient(270deg, ${trackStyle.accent}4d 0%, ${trackStyle.accent}22 42%, transparent 100%)`
-              : "transparent",
-        }}
-      >
+        >
+          <div
+            style={{
+              position: "absolute",
+              left: 4,
+              top: 6,
+              bottom: 6,
+              width: 2,
+              borderRadius: 1,
+              background: trackStyle.accent,
+              opacity: handleOpacity * 0.6,
+            }}
+          />
+        </div>
+      )}
+      {/* Right trim handle */}
+      {showHandles && capabilities.canTrimEnd && (
         <div
+          aria-hidden="true"
+          onPointerDown={(e) => onResizeStart?.("end", e)}
           style={{
             position: "absolute",
-            right: 6,
-            top: 7,
-            bottom: 7,
-            width: 3,
-            borderRadius: 999,
-            background: theme.handleColor,
-            boxShadow: `0 0 0 1px ${trackStyle.accent}38, 0 0 12px ${trackStyle.accent}18`,
-            opacity: handleOpacity,
-            pointerEvents: "none",
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: 14,
+            cursor: "col-resize",
+            zIndex: 4,
           }}
-        />
-      </div>
+        >
+          <div
+            style={{
+              position: "absolute",
+              right: 4,
+              top: 6,
+              bottom: 6,
+              width: 2,
+              borderRadius: 1,
+              background: trackStyle.accent,
+              opacity: handleOpacity * 0.6,
+            }}
+          />
+        </div>
+      )}
       {children}
     </div>
   );

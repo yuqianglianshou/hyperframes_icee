@@ -349,7 +349,13 @@ export function createStudioServer(options: StudioServerOptions): StudioServer {
         }, opts.seekTime);
         const manifestContent = readStudioManualEditManifestContent(opts.project.dir);
         await applyStudioManualEditsToThumbnailPage(page, manifestContent, opts.compPath);
-        await page.evaluate(() => document.fonts?.ready);
+        await page.evaluate(() => {
+          void document.fonts?.ready;
+          const body = document.body;
+          if (body && getComputedStyle(body).backgroundColor === "rgba(0, 0, 0, 0)") {
+            body.style.backgroundColor = "#1c2028";
+          }
+        });
         await new Promise((r) => setTimeout(r, 200));
         await reapplyStudioManualEditsToThumbnailPage(page);
         let clip: ScreenshotClip | undefined;
