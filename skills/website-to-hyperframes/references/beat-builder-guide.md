@@ -156,6 +156,29 @@ FLAG: STORYBOARD.md beat 3 says "Row 1 transitions blue → orange at 3.5s" but
 
 The main agent then confirms or corrects before Step 6 advances. Picking an interpretation silently means the build looks "fine" while diverging from intent — and the user only notices in motion.
 
+### Sub-agent diagnoses are unverified claims, not facts
+
+When a sub-agent reports "this is a linter false positive" / "this is a known bug" / "this attribute doesn't work as documented" — those are HYPOTHESES, not findings. Sub-agents diagnose from one symptom; they don't have repo-wide context.
+
+Before propagating any sub-agent diagnosis (e.g., applying the same "workaround" to another beat, or telling the user "this is a known bug"), do ONE of:
+
+1. **Verify by reading the source.** Open the file the sub-agent claims is buggy. Confirm the bug exists. Example: "I read `packages/core/src/lint/utils.ts:42` and confirmed the regex matches `url(\"data:image/svg+xml...\")` incorrectly. The workaround is to base64-encode the URI."
+2. **Disclose the unverified claim.** Don't suppress it — surface it. Example: "Sub-agent for beat 2 diagnosed `root_missing_composition_id` as a linter false positive on inline SVG data URIs. I applied the same workaround to beat 4 WITHOUT verifying the underlying claim. Worth filing as a regression against `packages/core/src/lint/utils.ts` to confirm."
+
+**Forbidden:** silently adopting the workaround pattern and presenting "lint passes" as evidence. If the workaround came from an unverified diagnosis, "lint passes because the diagnosis was correct AND I worked around it" and "lint passes because the diagnosis was wrong but the workaround happened to make the symptom disappear" are both possible. Without verification, you don't know which. The next session inherits the workaround AND the unverified diagnosis.
+
+### When you accept a sub-agent's divergence from spec — UPDATE the spec
+
+If a sub-agent reports "I diverged from STORYBOARD.md because..." AND you accept the divergence, you MUST update STORYBOARD.md to reflect the actual implementation. Otherwise the spec lies about the artifact.
+
+Examples:
+
+- Sub-agent: "Storyboard says 'HULY' uppercase but the actual logo asset is lowercase 'huly'. I used lowercase." Accept → edit STORYBOARD.md beat N to say "huly" lowercase. Note the change inline.
+- Sub-agent: "Storyboard says cells at 56px but they read too small at 1920×1080. I used 96px." Accept → edit STORYBOARD.md beat N's cell size to 96px.
+- Sub-agent: "Storyboard says SFX at t=4.7s but the visual moment lands at t=5.2s; I aligned SFX to the visual." Accept → edit STORYBOARD.md SFX line to t=5.2s.
+
+**Forbidden:** accepting the divergence silently and leaving the storyboard with the wrong spec. The next session reading STORYBOARD.md will trust it as ground truth. The spec is a contract; if you break the contract, update the contract.
+
 ---
 
 ## Continuous motion — the most important rule

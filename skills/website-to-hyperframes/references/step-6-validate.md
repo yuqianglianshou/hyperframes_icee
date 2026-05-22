@@ -173,27 +173,52 @@ If you cannot find any problems and want to score everything 4–5, you are not 
 
 Read every score. Fix anything below 3 before showing the user. If the CTA scores below 3, fix the CTA. Do not rationalize low scores as "the user can decide."
 
-## Audio + motion verification — separate from snapshot verification
+## Audio + motion verification — three paths, pick one
 
-Snapshots are silent stills. They prove what FRAMES look like, but they do NOT prove:
+Snapshots are silent stills. 18 PNG snapshots from a 30s 30fps video = 18/900 = 2% of frames. The other 98% — including all motion, all transitions, all audio — is unverified by snapshots alone. "Confirmed via snapshot" is not coverage.
 
-- That audio fires at all
-- That SFX lands exactly when the visual moment lands (target: ±0.1s, hard limit: ±0.5s)
-- That narration syncs to per-beat content
-- That transitions feel right in motion
+You MUST do ONE of these three paths before declaring done:
 
-After snapshot DoD items pass, **play the preview Studio URL in a browser** (or via Playwright if available). Don't scrub — actually play it from start to end at 1.0× speed. Then verify:
+### Path 1 (preferred): Play the preview
+
+Open the Studio URL in a browser via Playwright (or another browser tool you have). Play start-to-end at 1.0× speed (NOT scrubbed). Confirm:
 
 ```
 [ ] Played full video front-to-back at 1.0× — actually played, not scrubbed
 [ ] For each SFX in STORYBOARD.md: sound lands at the visual moment within ±0.1s
     (Beat N SFX `<file>`: storyboard says t=<x>s → heard at t=<y>s → drift <z>s)
 [ ] Narration delivers the right line per beat (no off-by-one or missing lines)
-[ ] No moments where audio is present but visual is unintentionally mid-transition
+[ ] No moments where audio is present but visual is mid-transition unintentionally
 [ ] Audio audible and not clipped/peaked
 ```
 
-**If you cannot play the preview** (no Playwright in this session, CLI-only environment), state this explicitly: "Audio + motion verification deferred to user — no preview tool available in this session." That is honest disclosure. **Silently skipping this check while presenting a "looks good" verdict fails the gate.**
+### Path 2: Render a low-res MP4 and read it frame-by-frame
+
+When Playwright isn't available, render at 540p (fast — ~30s for a 30s video) and read the MP4:
+
+```bash
+node /<repo-root>/packages/cli/dist/cli.js render <project-dir> \
+  --width 960 --height 540 --quality medium
+```
+
+Then sample the resulting MP4 at minimum 5fps (use `ffmpeg -i <mp4> -r 5 frames/frame-%04d.png` if needed). Read those frames sequentially. For each SFX moment in STORYBOARD.md, find the corresponding frame and confirm the visual matches.
+
+### Path 3 (last resort): Explicit deferred disclosure with quantified gap
+
+If neither Path 1 nor Path 2 is possible in this session, your final summary MUST contain this verbatim:
+
+```
+**Audio + motion verification: NOT POSSIBLE in this session.**
+- Snapshots cover: <N> frames out of <video_duration × fps> total (<percentage>% coverage)
+- NOT verified: motion between snapshots, SFX/visual timing alignment, shader transition smoothness, audio mix levels, narration sync to beats
+- Recommended user action: open the preview URL above and play start-to-end; flag anything that feels off
+```
+
+**Forbidden everywhere:**
+
+- "Confirmed via snapshot" or "snapshots look right" as audio/motion evidence
+- "Preview is running, looks good" without actually playing it
+- Path 3 disclosure that omits the quantified coverage gap (the percentage is mandatory)
 
 ## Preview (always do this)
 

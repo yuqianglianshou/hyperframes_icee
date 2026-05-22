@@ -389,6 +389,22 @@ For every `.html` file in `compositions/`, confirm that `index.html` has a `data
 
 **Captions stub rule:** Never create a `compositions/captions.html` with an empty transcript (`const script = [];`). If the VO/transcript step was skipped or failed, do not create the captions composition at all. An empty captions file that returns immediately is worse than no captions file — it silently does nothing and wastes a track slot.
 
+### Parallel sub-agent snapshots are stale — re-snapshot after all complete
+
+When you dispatch sub-agents in parallel (one per beat), each sub-agent snapshots a project where sibling beats may not exist yet. Their per-beat snapshots are valid for THEIR beat in isolation, but **any snapshot at a beat boundary or during a shader transition will show the wrong content** — typically the previous beat's content because the next beat hasn't been built.
+
+Example: Beat 6's sub-agent took a snapshot at t=25.7s and saw Beat 1's content because Beat 5 didn't exist yet when Beat 6's sub-agent ran. The sub-agent reported this as "shader transition behavior showing previous scene" — a plausible-sounding but wrong diagnosis.
+
+**Required after all sub-agents complete:**
+
+```bash
+node /<repo-root>/packages/cli/dist/cli.js snapshot <project-dir> --frames <N>
+```
+
+where N follows the snapshot formula: `max(beats × 3, ceil(duration_seconds / 2))`. This is the canonical snapshot that Step 6's DoD uses — not any individual sub-agent's intermediate snapshots.
+
+Sub-agents' snapshots are still useful as per-beat sanity checks, but they are not the deliverable. The post-completion snapshot is. Don't skip it because "the sub-agents already snapshotted."
+
 ## 5. Read each beat HTML top-to-bottom — REQUIRED gate before Step 6
 
 **This gate is non-skippable.** "I read it and it looks fine", "the sub-agent confirmed", "the snapshots look right" are NOT acceptable. Snapshots are 3 frames out of 300+ in motion — they hide everything that goes wrong between them.
