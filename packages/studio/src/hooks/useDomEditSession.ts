@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { TimelineElement } from "../player";
+import { usePlayerStore } from "../player";
 import {
   STUDIO_INSPECTOR_PANELS_ENABLED,
   STUDIO_GSAP_PANEL_ENABLED,
@@ -27,8 +28,8 @@ import {
   tryGsapDragIntercept,
   tryGsapResizeIntercept,
   tryGsapRotationIntercept,
-  readRuntimeKeyframes,
 } from "./gsapRuntimeBridge";
+import { useAnimatedPropertyCommit } from "./useAnimatedPropertyCommit";
 
 // ── Types ──
 
@@ -206,6 +207,18 @@ export function useDomEditSession({
     onClickToSource,
   });
 
+  // Sync DOM selection → timeline selectedElementId so that clip selection
+  // highlights and diamond playhead fills work on cold-load URL restore.
+  useEffect(() => {
+    if (!domEditSelection?.id) return;
+    const { selectedElementId, elements, setSelectedElementId } = usePlayerStore.getState();
+    const matchKey = elements.find(
+      (el) => el.domId === domEditSelection.id || el.id === domEditSelection.id,
+    );
+    const key = matchKey ? (matchKey.key ?? matchKey.id) : null;
+    if (key && key !== selectedElementId) setSelectedElementId(key);
+  }, [domEditSelection?.id]);
+
   // ── GSAP script editing ──
 
   const { version: gsapCacheVersion, bump: bumpGsapCache } = useGsapCacheVersion();
@@ -216,7 +229,6 @@ export function useDomEditSession({
     STUDIO_GSAP_PANEL_ENABLED ? (projectId ?? null) : null,
     gsapSourceFile,
     gsapCacheVersion,
-    previewIframeRef,
   );
 
   const {
@@ -230,7 +242,6 @@ export function useDomEditSession({
       ? { id: domEditSelection.id ?? null, selector: domEditSelection.selector ?? null }
       : null,
     gsapCacheVersion,
-    previewIframeRef,
   );
 
   const {
@@ -494,49 +505,6 @@ export function useDomEditSession({
     [domEditSelection, convertToKeyframes],
   );
 
-  const handleGsapMaterializeKeyframes = useCallback(
-    async (animId: string) => {
-      if (!domEditSelection || !gsapCommitMutation) return;
-      const anim = selectedGsapAnimations.find((a) => a.id === animId);
-      if (!anim || (!anim.hasUnresolvedKeyframes && !anim.hasUnresolvedSelector) || !anim.keyframes)
-        return;
-      if (anim.hasUnresolvedSelector) {
-        const { scanAllRuntimeKeyframes } = await import("./gsapRuntimeKeyframes");
-        const allScanned = scanAllRuntimeKeyframes(previewIframeRef.current);
-        if (allScanned.size === 0) return;
-        const allElements = Array.from(allScanned.entries()).map(([id, data]) => ({
-          selector: `#${id}`,
-          keyframes: data.keyframes,
-          easeEach: data.easeEach,
-        }));
-        await gsapCommitMutation(
-          domEditSelection,
-          {
-            type: "materialize-keyframes",
-            animationId: animId,
-            keyframes: allScanned.get(domEditSelection.id ?? "")?.keyframes ?? [],
-            allElements,
-          },
-          { label: "Unroll dynamic animations", skipReload: true },
-        );
-        return;
-      }
-      const runtime = readRuntimeKeyframes(previewIframeRef.current, anim.targetSelector);
-      if (!runtime || runtime.keyframes.length === 0) return;
-      await gsapCommitMutation(
-        domEditSelection,
-        {
-          type: "materialize-keyframes",
-          animationId: animId,
-          keyframes: runtime.keyframes,
-          easeEach: runtime.easeEach,
-        },
-        { label: "Materialize dynamic keyframes", skipReload: true },
-      );
-    },
-    [domEditSelection, selectedGsapAnimations, gsapCommitMutation, previewIframeRef],
-  );
-
   const handleGsapRemoveAllKeyframes = useCallback(
     (animId: string) => {
       if (!domEditSelection) return;
@@ -558,6 +526,15 @@ export function useDomEditSession({
     removeAllKeyframes(domEditSelection, withKeyframes.id);
     return true;
   }, [domEditSelection, selectedGsapAnimations, removeAllKeyframes]);
+
+  const commitAnimatedProperty = useAnimatedPropertyCommit({
+    selectedGsapAnimations,
+    gsapCommitMutation,
+    addGsapAnimation: (sel, method, time) => addGsapAnimation(sel, method, time),
+    convertToKeyframes: (sel, animId) => convertToKeyframes(sel, animId),
+    previewIframeRef,
+    bumpGsapCache,
+  });
 
   // Sync selection from preview document on load / refresh
   // eslint-disable-next-line no-restricted-syntax
@@ -702,9 +679,9 @@ export function useDomEditSession({
     handleGsapAddKeyframe,
     handleGsapRemoveKeyframe,
     handleGsapConvertToKeyframes,
-    handleGsapMaterializeKeyframes,
     handleGsapRemoveAllKeyframes,
     handleResetSelectedElementKeyframes,
+    commitAnimatedProperty,
     invalidateGsapCache: bumpGsapCache,
     previewIframeRef,
   };

@@ -43,11 +43,15 @@ export const ClipContextMenu = memo(function ClipContextMenu({
   const adjustedX = Math.min(x, window.innerWidth - 200);
   const adjustedY = Math.min(y, window.innerHeight - 200);
 
-  const canSplit = currentTime > element.start && currentTime < element.start + element.duration;
+  const isSplittable = ["video", "audio", "img"].includes(element.tag);
+  const canSplit =
+    isSplittable && currentTime > element.start && currentTime < element.start + element.duration;
 
-  const splitLabel = canSplit
-    ? `Split at ${currentTime.toFixed(2)}s`
-    : "Split (move playhead inside clip)";
+  const splitLabel = !isSplittable
+    ? null
+    : canSplit
+      ? `Split at ${currentTime.toFixed(2)}s`
+      : "Split (move playhead inside clip)";
 
   return (
     <div
@@ -55,26 +59,29 @@ export const ClipContextMenu = memo(function ClipContextMenu({
       className="fixed z-50 bg-neutral-900 border border-neutral-700 rounded-md shadow-lg py-1 min-w-[180px]"
       style={{ left: adjustedX, top: adjustedY }}
     >
-      <button
-        type="button"
-        className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-left ${
-          canSplit
-            ? "text-neutral-300 hover:bg-neutral-800 cursor-pointer"
-            : "text-neutral-600 cursor-not-allowed"
-        }`}
-        disabled={!canSplit}
-        onClick={() => {
-          if (canSplit) {
-            onSplit(element, currentTime);
-            onClose();
-          }
-        }}
-      >
-        <span>{splitLabel}</span>
-        <span className="text-neutral-500 text-[10px] ml-3">S</span>
-      </button>
-
-      <div className="my-1 border-t border-neutral-700/60" />
+      {splitLabel && (
+        <>
+          <button
+            type="button"
+            className={`w-full flex items-center justify-between px-3 py-1.5 text-xs text-left ${
+              canSplit
+                ? "text-neutral-300 hover:bg-neutral-800 cursor-pointer"
+                : "text-neutral-600 cursor-not-allowed"
+            }`}
+            disabled={!canSplit}
+            onClick={() => {
+              if (canSplit) {
+                onSplit(element, currentTime);
+                onClose();
+              }
+            }}
+          >
+            <span>{splitLabel}</span>
+            <span className="text-neutral-500 text-[10px] ml-3">S</span>
+          </button>
+          <div className="my-1 border-t border-neutral-700/60" />
+        </>
+      )}
 
       <button
         type="button"

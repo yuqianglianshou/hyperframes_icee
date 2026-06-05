@@ -23,6 +23,7 @@ interface TimelineClipProps {
   onResizeStart?: (edge: "start" | "end", e: React.PointerEvent) => void;
   onClick: (e: React.MouseEvent) => void;
   onDoubleClick: (e: React.MouseEvent) => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
   children?: ReactNode;
 }
 
@@ -44,6 +45,7 @@ export const TimelineClip = memo(function TimelineClip({
   onResizeStart,
   onClick,
   onDoubleClick,
+  onContextMenu,
   children,
 }: TimelineClipProps) {
   const leftPx = el.start * pps;
@@ -51,14 +53,14 @@ export const TimelineClip = memo(function TimelineClip({
   const handleOpacity = getClipHandleOpacity({ isHovered, isSelected, isDragging });
 
   const borderColor = isSelected
-    ? trackStyle.accent + "60"
+    ? trackStyle.accent
     : isHovered
       ? theme.clipBorderHover
       : theme.clipBorder;
   const boxShadow = isDragging
     ? theme.clipShadowDragging
     : isSelected
-      ? `0 0 0 1px ${trackStyle.accent}40`
+      ? `0 0 0 1px ${trackStyle.accent}80, 0 0 8px ${trackStyle.accent}25`
       : isHovered
         ? theme.clipShadowHover
         : theme.clipShadow;
@@ -98,6 +100,7 @@ export const TimelineClip = memo(function TimelineClip({
       onPointerDown={onPointerDown}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
     >
       {/* Left accent stripe */}
       <div

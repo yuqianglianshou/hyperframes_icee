@@ -91,6 +91,7 @@ export function StudioRightPanel({
     handleGsapUpdateFromProperty,
     handleGsapAddFromProperty,
     handleGsapRemoveFromProperty,
+    commitAnimatedProperty,
   } = useDomEditContext();
 
   const { assets, fontAssets, projectDir, handleImportFiles, handleImportFonts } =
@@ -211,6 +212,7 @@ export function StudioRightPanel({
                   onImportAssets={handleImportFiles}
                   fontAssets={fontAssets}
                   onImportFonts={handleImportFonts}
+                  previewIframeRef={previewIframeRef}
                   gsapAnimations={selectedGsapAnimations}
                   gsapMultipleTimelines={gsapMultipleTimelines}
                   gsapUnsupportedTimelinePattern={gsapUnsupportedTimelinePattern}
@@ -223,6 +225,7 @@ export function StudioRightPanel({
                   onAddGsapFromProperty={handleGsapAddFromProperty}
                   onRemoveGsapFromProperty={handleGsapRemoveFromProperty}
                   onAddGsapAnimation={handleGsapAddAnimation}
+                  onCommitAnimatedProperty={commitAnimatedProperty}
                 />
               ) : motionPanelActive ? (
                 <MotionPanel

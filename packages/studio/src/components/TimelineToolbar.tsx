@@ -6,6 +6,7 @@ import { getTimelineToggleTitle } from "../utils/timelineDiscovery";
 import { usePlayerStore, type TimelineElement } from "../player";
 import { STUDIO_KEYFRAMES_ENABLED } from "./editor/manualEditingAvailability";
 import { Tooltip } from "./ui";
+import { Scissors } from "../icons/SystemIcons";
 import type { GsapAnimation, GsapPercentageKeyframe } from "@hyperframes/core/gsap-parser";
 import type { DomEditSelection } from "./editor/domEditingTypes";
 
@@ -218,38 +219,35 @@ export function TimelineToolbar({
               </button>
             </Tooltip>
           )}
-          {onSplitElement && (
-            <Tooltip label="Split clip at playhead (S)">
-              <button
-                type="button"
-                onClick={() => {
-                  const { selectedElementId, elements, currentTime } = usePlayerStore.getState();
-                  if (!selectedElementId) return;
-                  const el = elements.find((e) => (e.key ?? e.id) === selectedElementId);
-                  if (el && currentTime > el.start && currentTime < el.start + el.duration) {
-                    onSplitElement(el, currentTime);
-                  }
-                }}
-                className="flex h-7 w-7 items-center justify-center rounded text-neutral-500 transition-colors hover:text-neutral-200"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.4"
-                  strokeLinecap="round"
-                >
-                  <line x1="8" y1="2" x2="8" y2="14" />
-                  <polyline points="5,5 3,2" />
-                  <polyline points="11,5 13,2" />
-                  <polyline points="5,11 3,14" />
-                  <polyline points="11,11 13,14" />
-                </svg>
-              </button>
-            </Tooltip>
-          )}
+          {onSplitElement &&
+            (() => {
+              const { selectedElementId, elements, currentTime } = usePlayerStore.getState();
+              const el = selectedElementId
+                ? elements.find((e) => (e.key ?? e.id) === selectedElementId)
+                : null;
+              const splittable =
+                el && !el.compositionSrc && ["video", "audio", "img"].includes(el.tag);
+              if (!splittable) return null;
+              const canSplit = currentTime > el.start && currentTime < el.start + el.duration;
+              return (
+                <Tooltip label="Split clip at playhead (S)">
+                  <button
+                    type="button"
+                    disabled={!canSplit}
+                    onClick={() => {
+                      if (canSplit) onSplitElement(el, currentTime);
+                    }}
+                    className={`flex h-7 w-7 items-center justify-center rounded transition-colors ${
+                      canSplit
+                        ? "text-neutral-500 hover:text-neutral-200"
+                        : "text-neutral-700 cursor-not-allowed"
+                    }`}
+                  >
+                    <Scissors size={15} />
+                  </button>
+                </Tooltip>
+              );
+            })()}
         </div>
         <div className="flex items-center gap-1">
           <Tooltip label="Fit timeline to width">

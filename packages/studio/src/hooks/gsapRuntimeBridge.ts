@@ -383,7 +383,7 @@ async function commitFromToPosition(
 
 // ── Runtime property reader ───────────────────────────────────────────────
 
-function readGsapProperty(
+export function readGsapProperty(
   iframe: HTMLIFrameElement | null,
   selector: string | null,
   prop: string,
@@ -401,7 +401,7 @@ function readGsapProperty(
   }
 }
 
-function readAllAnimatedProperties(
+export function readAllAnimatedProperties(
   iframe: HTMLIFrameElement | null,
   selector: string,
   anim: GsapAnimation,
