@@ -4,13 +4,12 @@ import {
   isHfColorGradingActive,
   normalizeHfColorGrading,
   normalizeHfColorGradingWithVariables,
-  parseHfColorGradingAttribute,
   serializeHfColorGrading,
 } from "./colorGrading";
 
 describe("color grading", () => {
   it("parses preset shorthand", () => {
-    const grading = parseHfColorGradingAttribute("warm-clean");
+    const grading = normalizeHfColorGrading("warm-clean");
     expect(grading?.preset).toBe("warm-clean");
     expect(grading?.colorSpace).toBe(HF_COLOR_GRADING_COLOR_SPACE);
     expect(grading?.adjust.temperature).toBeGreaterThan(0);
@@ -42,17 +41,17 @@ describe("color grading", () => {
     expect(grading?.lut?.intensity).toBe(1);
   });
 
-  it("returns null for disabled or invalid looks", () => {
+  it("returns null for disabled or invalid grading", () => {
     expect(normalizeHfColorGrading({ enabled: false, preset: "warm-clean" })).toBeNull();
-    expect(parseHfColorGradingAttribute("{nope")).toBeNull();
-    expect(parseHfColorGradingAttribute("")).toBeNull();
+    expect(normalizeHfColorGrading("{nope")).toBeNull();
+    expect(normalizeHfColorGrading("")).toBeNull();
   });
 
-  it("serializes normalized looks for data-color-grading", () => {
+  it("serializes normalized grading for data-color-grading", () => {
     const grading = normalizeHfColorGrading({ adjust: { exposure: 0.25 } });
     const serialized = serializeHfColorGrading(grading);
     expect(serialized).toContain('"exposure":0.25');
-    expect(parseHfColorGradingAttribute(serialized)?.adjust.exposure).toBe(0.25);
+    expect(normalizeHfColorGrading(serialized)?.adjust.exposure).toBe(0.25);
   });
 
   it("treats zero global intensity as inactive even with LUT data", () => {

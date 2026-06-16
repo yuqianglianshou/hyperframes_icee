@@ -222,7 +222,7 @@ function maybeInlineRelativeAssetUrl(urlValue: string, projectDir: string): stri
 }
 
 // fallow-ignore-next-line complexity
-function rewriteLookLutWithInlinedAssets(value: string, projectDir: string): string {
+function rewriteColorGradingLutWithInlinedAssets(value: string, projectDir: string): string {
   if (!value.trim().startsWith("{")) return value;
   let parsed: unknown;
   try {
@@ -979,7 +979,10 @@ export async function bundleToSingleHtml(
   for (const el of [...document.querySelectorAll(`[${HF_COLOR_GRADING_ATTR}]`)]) {
     const value = el.getAttribute(HF_COLOR_GRADING_ATTR);
     if (value) {
-      el.setAttribute(HF_COLOR_GRADING_ATTR, rewriteLookLutWithInlinedAssets(value, projectDir));
+      el.setAttribute(
+        HF_COLOR_GRADING_ATTR,
+        rewriteColorGradingLutWithInlinedAssets(value, projectDir),
+      );
     }
   }
 

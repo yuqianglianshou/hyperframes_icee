@@ -256,9 +256,6 @@ export function resolveHfColorGradingVariables(
       return raw;
     }
   }
-  if (Array.isArray(raw)) {
-    return raw.map((item) => resolveHfColorGradingVariables(item, variables));
-  }
   if (!isRecord(raw)) return raw;
 
   const resolved: Record<string, unknown> = {};
@@ -268,9 +265,7 @@ export function resolveHfColorGradingVariables(
   return resolved;
 }
 
-export function getHfColorGradingPreset(
-  id: string | null | undefined,
-): HfColorGradingPreset | null {
+function getHfColorGradingPreset(id: string | null | undefined): HfColorGradingPreset | null {
   if (!id) return null;
   return PRESETS_BY_ID.get(id) ?? null;
 }
@@ -303,13 +298,6 @@ export function normalizeHfColorGrading(raw: unknown): NormalizedHfColorGrading 
         ? grading.colorSpace.trim()
         : HF_COLOR_GRADING_COLOR_SPACE,
   };
-}
-
-export function parseHfColorGradingAttribute(
-  value: string | null | undefined,
-): NormalizedHfColorGrading | null {
-  if (value == null) return null;
-  return normalizeHfColorGrading(value);
 }
 
 export function normalizeHfColorGradingWithVariables(
