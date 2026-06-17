@@ -14,7 +14,7 @@ describe("font rules", () => {
       </div>`;
       const findings = await findByCode(html, "google_fonts_import");
       expect(findings).toHaveLength(1);
-      expect(findings[0]!.severity).toBe("warning");
+      expect(findings[0]!.severity).toBe("error");
     });
 
     it("flags <link> to fonts.googleapis.com", async () => {
@@ -28,6 +28,16 @@ describe("font rules", () => {
     it("does not flag local @font-face usage", async () => {
       const html = `<div data-composition-id="test" data-width="1920" data-height="1080">
         <style>@font-face { font-family: 'Inter'; src: url('../capture/assets/fonts/Inter.woff2'); }</style>
+      </div>`;
+      const findings = await findByCode(html, "google_fonts_import");
+      expect(findings).toHaveLength(0);
+    });
+
+    it("does not flag installed registry blocks that bundle Google Fonts", async () => {
+      const html =
+        `<!-- hyperframes-registry-item: my-block -->\n` +
+        `<div data-composition-id="test" data-width="1920" data-height="1080">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter">
       </div>`;
       const findings = await findByCode(html, "google_fonts_import");
       expect(findings).toHaveLength(0);
@@ -191,6 +201,16 @@ describe("font rules", () => {
         <style>
           @font-face { font-family: 'CustomFont'; src: url('../fonts/custom.woff2'); }
         </style>
+      </div>`;
+      const findings = await findByCode(html, "font_family_without_font_face");
+      expect(findings).toHaveLength(0);
+    });
+
+    it("does not flag installed registry blocks that declare fonts via Google Fonts", async () => {
+      const html =
+        `<!-- hyperframes-registry-item: my-block -->\n` +
+        `<div data-composition-id="test" data-width="1920" data-height="1080">
+        <style>body { font-family: 'Poppins', sans-serif; }</style>
       </div>`;
       const findings = await findByCode(html, "font_family_without_font_face");
       expect(findings).toHaveLength(0);
